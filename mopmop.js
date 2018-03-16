@@ -58,7 +58,7 @@ var GameObjectFactory = {
             this.y = util.randomInt(this.height/2, this.ctx.canvas.height-this.height/2);
         };
     }(ctx));},
-    DirtObject : function () {
+    DropObject : function () {
         this.frame_update = function () {};
         this.init = function () {};
     }
