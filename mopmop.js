@@ -13,6 +13,8 @@ var GameControl = function () {
         myMop.init();
         myMop.frame_update();
         console.log(myMop);
+        var dropControlloer = new DropControlloer(this.ctx);
+        dropControlloer.init();
     };
     this.clear = function () {};
     this.update_frame = function () {};
@@ -58,10 +60,42 @@ var GameObjectFactory = {
             this.y = util.randomInt(this.height/2, this.ctx.canvas.height-this.height/2);
         };
     }(ctx));},
-    DropObject : function () {
-        this.frame_update = function () {};
-        this.init = function () {};
-    }
+    DropObject : function (ctx) {
+    return (new function(ctx) {
+        this.ctx = ctx;
+        this.color = "blue";
+        this.frame_update = function () {
+            console.log(this.ctx);
+            this.ctx.beginPath();
+            this.ctx.arc(this.x, this.y, this.radius, 0, 2*Math.PI)
+            console.log(this.x, this.y, this.radius, 2*Math.PI)
+            this.ctx.fillStyle = this.color;
+            this.ctx.fill();
+        };
+        this.init = function () {
+            this.width = 50;
+            this.height = 50;
+            this.radius = 10;
+            this.x = util.randomInt(this.width/2, this.ctx.canvas.width-this.width/2);
+            this.y = util.randomInt(this.height/2, this.ctx.canvas.height-this.height/2);
+        };
+    }(ctx));}
+};
+
+var DropControlloer = function (ctx) {
+	this.drops = [];
+	this.numOfDrops = 5;
+    this.init = function () {
+    	for (var i = 0; i < this.numOfDrops; i++) {
+		    this.drops.push(new GameObjectFactory.DropObject(ctx));
+		    this.drops[this.drops.length - 1].init();
+		    this.drops[this.drops.length - 1].frame_update();
+		    //console.log(this.drops[this.drops.length - 1]);
+    	}
+    };
+    this.clear = function () {
+    	//delete this.drops[this.drops.length - 1];
+    };
 };
 
 var util = {
