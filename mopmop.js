@@ -17,9 +17,11 @@ var GameControl = function () {
 
         var dropController = new DropController(this.ctx);
         dropController.init();
+        this.ctx.dropController = dropController;
 
         var mopController = new MopController(this.ctx);
         mopController.init();
+        this.ctx.mopComtroller = mopController;
 
         this.game_objects.push(dropController, mopController);
 
@@ -74,6 +76,7 @@ var GameObjectFactory = {
         this.ctx.is_spining = true;
         this.ctx.angle = 0;
         this.frame_no = 0;
+        this.score = 0;
         this.frame_update = function (frame_no) {
             if (this.ctx.is_spining) this.move("spin", frame_no); else this.move("rush", this.ctx.angle);
             this.x += this.speed_X;
@@ -84,6 +87,8 @@ var GameObjectFactory = {
             this.ctx.fillStyle = this.color;
             this.ctx.fill();
             this.hitborder();
+            util.update_position(this);
+            this.ctx.dropController.wipe(this);
         };
         this.init = function () {
             this.width = 50;
@@ -93,19 +98,19 @@ var GameObjectFactory = {
             this.y = util.randomInt(this.height/2, this.ctx.canvas.height-this.height/2);
             this.spin(0);
             for (var en of ['keydown', 'touchstart']) {
-                console.log(en);
                 this.ctx.canvas.addEventListener(en, function (e) {
+                    e.preventDefault();
                     var ctx = this.getContext("2d");
-                    if (e.keyCode == 32) {
+                    if (e.which == 32 || e.which == 0) {
                         ctx.is_spining = false;
                     }
-                });
+                }, false);
             };
             for (var en of ['keyup', 'touchend']) {
                 this.ctx.canvas.addEventListener(en, function (e) {
                     var ctx = this.getContext("2d");
                     ctx.is_spining = true;
-                });
+                }, false);
             };
         };
         this.hitborder = function () {
@@ -129,8 +134,9 @@ var GameObjectFactory = {
             this.speed_X = 0;
             this.speed_Y = 0;
             this.ctx.angle = this.frame_no*0.05;
-            this.arc_start = this.ctx.angle % (2*Math.PI);
-            this.arc_end = this.arc_start + 1.8*Math.PI;
+            this.arc_degree = 0.2*Math.PI;
+            this.arc_start = (this.ctx.angle + this.arc_degree/2) % (2*Math.PI);
+            this.arc_end = this.arc_start + (2*Math.PI - this.arc_degree);
         };
         this.rush = function (angle) {
             this.speed_X = Math.cos(angle) * this.velocity;
@@ -151,6 +157,8 @@ var GameObjectFactory = {
             this.ctx.arc(this.x, this.y, this.radius, 0, 2*Math.PI);
             this.ctx.fillStyle = this.color;
             this.ctx.fill();
+
+            util.update_position(this);
         };
         this.init = function () {
             this.width = 50;
@@ -176,22 +184,51 @@ var DropController = function (ctx) {
 	this.drops = [];
 	this.numOfDrops = 5;
     this.init = function () {
-    	for (var i = 0; i < this.numOfDrops; i++) {
+        this.create_drops(this.numOfDrops);
+    };
+    this.create_drops = function (numOfNewDrops) {
+        for (var i = 0; i < numOfNewDrops; i++) {
 		    this.drops.push(new GameObjectFactory.DropObject(ctx));
 		    this.drops[this.drops.length - 1].init();;
-    	}
-    };
-    this.clear = function () {
+        }
+    }
+    this.clear = function (drop) {
     	//delete this.drops[this.drops.length - 1];
+        var index = this.drops.indexOf(drop);
+        this.drops.splice(index, 1);
     };
     this.frame_update = function (frame_no) {
         this.drops.forEach(function (obj) {obj.frame_update(frame_no);});
-    }
+    };
+    this.wipe = function (mop) {
+        for (var drop of this.drops) {
+            if (util.check_collision(mop, drop)) {
+                mop.score += 1;
+                this.clear(drop);
+                this.create_drops(1);
+            }
+        };
+    };
 };
 
 var util = {
     randomInt : function (start, end) {
         var rd = Math.random();
         return Math.floor(rd*(end-start) + start);
+    },
+    check_collision: function (obj1, obj2) {
+
+        if (!(obj1.right < obj2.left || obj1.left > obj2.right
+        || obj1.top > obj2.bottom || obj1.bottom < obj2.top)) {
+            return true;
+        } else {
+            return false;
+        }
+    },
+    update_position: function (obj) {
+        obj.left = obj.x - obj.width/2;
+        obj.right = obj.x + obj.width/2;
+        obj.top = obj.y - obj.height/2;
+        obj.bottom = obj.y + obj.height/2;
     }
 }
