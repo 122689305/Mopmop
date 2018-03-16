@@ -2,6 +2,8 @@ var GameControl = function () {
     this.game_area = null;
     this.game_objects = [];
     this.frame_no = 0;
+    this.freq = 60;
+    this.interval = Math.round(1000 / this.freq);
     this.new_game = function () {
         this.init();
     };
@@ -13,25 +15,34 @@ var GameControl = function () {
         this.cv = this.game_area.canvas;
         this.ctx = this.cv.getContext("2d");
 
-        var dropControlloer = new DropControlloer(this.ctx);
+        var dropController = new DropController(this.ctx);
+        dropController.init();
 
-        var myMop = new GameObjectFactory.MopObject(this.ctx);
-        myMop.init();
-        myMop.frame_update();
-        this.game_objects.push(myMop);
-        setInterval(new this.update_frame(this.game_objects, function () {this.clear(this.ctx);}), 500);
+        var mopController = new MopController(this.ctx);
+        mopController.init();
+
+        this.game_objects.push(dropController, mopController);
+
+        var clear = function(clear, ctx, width, height, dropController) {
+            return function() {clear(ctx, width, height, dropController);};
+        };
+
+        setInterval(new this.update_frame(this.game_objects, 
+            clear(this.clear, this.ctx, this.cv.width, this.cv.height, dropController)), this.interval);
     };
-    this.clear = function (ctx) {
-        ctx.clearRect(0, 0, this.cv.width, this.cv.height);
-        dropControlloer.init();
+    this.clear = function (ctx, width, height, dropController) {
+        ctx.clearRect(0, 0, width, height);
     };
-    this.update_frame = function (game_objects, clear) {return function() {
-        clear();
-        this.frame_no += 1;
-        game_objects.forEach(function (game_obj) {
-            game_obj.frame_update(this.frame_no);
-        });
-    };};
+    this.update_frame = function (game_objects, clear) {
+        frame_no = 0;
+        return function() {
+            clear();
+            frame_no += 1;
+            game_objects.forEach(function (game_obj) {
+                game_obj.frame_update(this.frame_no);
+            });
+        };
+    };
 };
 
 var GameArea = function () {
@@ -73,7 +84,7 @@ var GameObjectFactory = {
             this.spin(0);
         };
         this.spin = function (frame_no) {
-            this.arc_start = frame_no % (2*Math.PI);
+            this.arc_start = frame_no*0.05 % (2*Math.PI);
             this.arc_end = this.arc_start + 1.8*Math.PI;
         }
     }(ctx));},
@@ -81,11 +92,9 @@ var GameObjectFactory = {
     return (new function(ctx) {
         this.ctx = ctx;
         this.color = "blue";
-        this.frame_update = function () {
-            console.log(this.ctx);
+        this.frame_update = function (frame_no) {
             this.ctx.beginPath();
-            this.ctx.arc(this.x, this.y, this.radius, 0, 2*Math.PI)
-            console.log(this.x, this.y, this.radius, 2*Math.PI)
+            this.ctx.arc(this.x, this.y, this.radius, 0, 2*Math.PI);
             this.ctx.fillStyle = this.color;
             this.ctx.fill();
         };
@@ -99,20 +108,31 @@ var GameObjectFactory = {
     }(ctx));}
 };
 
-var DropControlloer = function (ctx) {
+var MopController = function (ctx) {
+    this.init = function () {
+        this.mop = new GameObjectFactory.MopObject(ctx);
+        this.mop.init();
+    }
+    this.frame_update = function (frame_no) {
+        this.mop.frame_update(frame_no);
+    }
+}
+
+var DropController = function (ctx) {
 	this.drops = [];
 	this.numOfDrops = 5;
     this.init = function () {
     	for (var i = 0; i < this.numOfDrops; i++) {
 		    this.drops.push(new GameObjectFactory.DropObject(ctx));
-		    this.drops[this.drops.length - 1].init();
-		    this.drops[this.drops.length - 1].frame_update();
-		    //console.log(this.drops[this.drops.length - 1]);
+		    this.drops[this.drops.length - 1].init();;
     	}
     };
     this.clear = function () {
     	//delete this.drops[this.drops.length - 1];
     };
+    this.frame_update = function (frame_no) {
+        this.drops.forEach(function (obj) {obj.frame_update(frame_no);});
+    }
 };
 
 var util = {
