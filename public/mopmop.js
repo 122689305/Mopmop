@@ -1,4 +1,6 @@
-var GameControl = function () {
+
+var GameControl = function (socket) {
+    this.socket = socket;
     this.game_area = null;
     this.game_objects = [];
     this.frame_no = 0;
@@ -20,6 +22,7 @@ var GameControl = function () {
         this.cv = this.game_area.canvas;
         this.ctx = this.cv.getContext("2d");
         this.ctx.game_area = this.game_area;
+        this.ctx.socket = this.socket;
 
         var dropController = new DropController(this.ctx);
         dropController.init();
@@ -37,6 +40,12 @@ var GameControl = function () {
 
         setInterval(new this.update_frame(this.ctx, this.game_objects,
             clear(this.clear, this.ctx, this.cv.width, this.cv.height, dropController)), this.interval);
+
+        this.socket.on('mop', (ctx => function(mop){
+            console.log('mop', mop);
+            mop.ctx = ctx;
+            ctx.mopController.add_mop(mop);
+        })(this.ctx));
     };
     this.clear = function (ctx, width, height, dropController) {
         ctx.clearRect(0, 0, width, height);
@@ -76,7 +85,7 @@ var GameArea = function () {
         this.time.setAttribute('id', 'time');
         this.status.appendChild(this.time);
         this.time.innerHTML = "<span>time</span><span>60</span>";
-        
+
         this.canvas = document.createElement("canvas");
         cv = this.canvas;
         cv.width = width;
@@ -201,7 +210,7 @@ var GameObjectFactory = {
             else if (type == "rush") this.rush(arg);
         };
         this.update_status = function() {
-            this.score_div.children[1].innerHTML = this.score;            
+            this.score_div.children[1].innerHTML = this.score;
         };
     }(ctx));},
     DropObject : function (ctx) {
@@ -227,23 +236,31 @@ var GameObjectFactory = {
 };
 
 var MopController = function (ctx) {
+    this.ctx = ctx;
     this.mops = {}
+    this.keycode = 65;
     this.init = function () {
-        var mop1 = new GameObjectFactory.MopObject(ctx);
-        mop1.init("red");
-        this.mops[65] = mop1;
-        var mop2 = new GameObjectFactory.MopObject(ctx);
-        mop2.init("blue");
-        this.mops[76] = mop2;
+        var mop = new GameObjectFactory.MopObject(ctx);
+        mop.init("blue");
+        this.mops[this.keycode] = mop;
+        this.keycode += 1;
+
+        this.ctx.socket.emit('mop', mop);
     }
     this.frame_update = function (frame_no) {
         for (var mop in this.mops) {
             this.mops[mop].frame_update(frame_no);
         }
     }
+    this.add_mop = function(mop) {
+        console.log(mop);
+        this.mops[keycode] = mop;
+        keycode += 1;
+    }
 }
 
 var DropController = function (ctx) {
+    this.ctx = ctx;
 	this.drops = [];
 	this.numOfDrops = 5;
     this.init = function () {

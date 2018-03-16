@@ -1,12 +1,14 @@
 <html>
 	<head>
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.4/socket.io.js"> </script>
         <script type="text/javascript" src='mopmop.js'></script> 
         <link rel="stylesheet" type="text/css" href="mopmop.css">
     </head>
 	<body>
         <h1>Welcome to Mopmop!</h1>
         <script type="text/javascript">
-          var game_control = new GameControl();
+          var socket = io();
+          var game_control = new GameControl(socket);
           game_control.new_game();
         </script>
 	</body>

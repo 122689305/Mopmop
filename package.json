@@ -1,0 +1,9 @@
+{
+    "name": "mopmop",
+    "version": "0.0.1",
+    "description": "mop the drop, enjoy the game!",
+    "dependencies": {
+        "express": "4.9.x",
+        "socket.io": "latest"
+    }
+}
