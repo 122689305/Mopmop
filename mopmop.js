@@ -1,4 +1,3 @@
-
 var GameControl = function () {
     this.game_area = null;
     this.game_objects = [];
@@ -14,6 +13,8 @@ var GameControl = function () {
         this.cv = this.game_area.canvas;
         this.ctx = this.cv.getContext("2d");
 
+        var dropControlloer = new DropControlloer(this.ctx);
+
         var myMop = new GameObjectFactory.MopObject(this.ctx);
         myMop.init();
         myMop.frame_update();
@@ -22,6 +23,7 @@ var GameControl = function () {
     };
     this.clear = function (ctx) {
         ctx.clearRect(0, 0, this.cv.width, this.cv.height);
+        dropControlloer.init();
     };
     this.update_frame = function (game_objects, clear) {return function() {
         clear();
@@ -75,10 +77,42 @@ var GameObjectFactory = {
             this.arc_end = this.arc_start + 1.8*Math.PI;
         }
     }(ctx));},
-    DropObject : function () {
-        this.frame_update = function () {};
-        this.init = function () {};
-    }
+    DropObject : function (ctx) {
+    return (new function(ctx) {
+        this.ctx = ctx;
+        this.color = "blue";
+        this.frame_update = function () {
+            console.log(this.ctx);
+            this.ctx.beginPath();
+            this.ctx.arc(this.x, this.y, this.radius, 0, 2*Math.PI)
+            console.log(this.x, this.y, this.radius, 2*Math.PI)
+            this.ctx.fillStyle = this.color;
+            this.ctx.fill();
+        };
+        this.init = function () {
+            this.width = 50;
+            this.height = 50;
+            this.radius = 10;
+            this.x = util.randomInt(this.width/2, this.ctx.canvas.width-this.width/2);
+            this.y = util.randomInt(this.height/2, this.ctx.canvas.height-this.height/2);
+        };
+    }(ctx));}
+};
+
+var DropControlloer = function (ctx) {
+	this.drops = [];
+	this.numOfDrops = 5;
+    this.init = function () {
+    	for (var i = 0; i < this.numOfDrops; i++) {
+		    this.drops.push(new GameObjectFactory.DropObject(ctx));
+		    this.drops[this.drops.length - 1].init();
+		    this.drops[this.drops.length - 1].frame_update();
+		    //console.log(this.drops[this.drops.length - 1]);
+    	}
+    };
+    this.clear = function () {
+    	//delete this.drops[this.drops.length - 1];
+    };
 };
 
 var util = {
