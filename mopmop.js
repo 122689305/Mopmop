@@ -6,14 +6,20 @@ var GameControl = function () {
     this.interval = Math.round(1000 / this.freq);
     this.new_game = function () {
         this.init();
+        this.game_area.start_tick();
     };
-    this.stop = function () {};
-    this.resume = function () {};
+    this.stop = function () {
+        this.game_area.stop_tick();
+    };
+    this.resume = function () {
+        this.game_area.start_tick();
+    };
     this.init = function () {
         this.game_area = new GameArea();
         this.game_area.init();
         this.cv = this.game_area.canvas;
         this.ctx = this.cv.getContext("2d");
+        this.ctx.game_area = this.game_area;
 
         var dropController = new DropController(this.ctx);
         dropController.init();
@@ -21,7 +27,7 @@ var GameControl = function () {
 
         var mopController = new MopController(this.ctx);
         mopController.init();
-        this.ctx.mopComtroller = mopController;
+        this.ctx.mopController = mopController;
 
         this.game_objects.push(dropController, mopController);
 
@@ -29,20 +35,22 @@ var GameControl = function () {
             return function() {clear(ctx, width, height, dropController);};
         };
 
-        setInterval(new this.update_frame(this.game_objects,
+        setInterval(new this.update_frame(this.ctx, this.game_objects,
             clear(this.clear, this.ctx, this.cv.width, this.cv.height, dropController)), this.interval);
     };
     this.clear = function (ctx, width, height, dropController) {
         ctx.clearRect(0, 0, width, height);
     };
-    this.update_frame = function (game_objects, clear) {
+    this.update_frame = function (ctx, game_objects, clear) {
         frame_no = 0;
         return function() {
-            clear();
-            frame_no += 1;
-            game_objects.forEach(function (game_obj) {
-                game_obj.frame_update(frame_no);
-            });
+            if (!(ctx.game_area.ticking == null)) {
+                clear();
+                frame_no += 1;
+                game_objects.forEach(function (game_obj) {
+                    game_obj.frame_update(frame_no);
+                });
+            }
         };
     };
 };
@@ -50,16 +58,47 @@ var GameControl = function () {
 var GameArea = function () {
     this.canvas = null;
     this.init = function () {
+        this.tick = 0;
+        this.ticking = null; // seconds;
         this.create_canvas(500, 500);
     };
     this.create_canvas = function (width, height) {
+        this.area = document.createElement("div");
+        this.area.setAttribute('id', 'game_area');
+        document.body.appendChild(this.area);
+
+        this.status = document.createElement("div");
+        sta = this.status;
+        sta.setAttribute('id', 'status');
+        this.area.appendChild(sta);
+
+        this.time = document.createElement("div");
+        this.time.setAttribute('id', 'time');
+        this.status.appendChild(this.time);
+        this.time.innerHTML = "<span>time</span><span>60</span>";
+        
         this.canvas = document.createElement("canvas");
         cv = this.canvas;
         cv.width = width;
         cv.height = height;
         cv.setAttribute('tabindex', '1');
-        document.body.appendChild(cv);
+        this.area.appendChild(cv);
     };
+    this.start_tick = function () {
+        this.ticking = setInterval(function(game_area) { return function () {
+            game_area.tick += 1;
+            document.getElementById('time').children[1].innerHTML = 60 - game_area.tick;
+            if (game_area.tick == 60) {
+                game_area.stop_tick();
+            }
+        }}(this), 1000);
+    };
+    this.stop_tick = function () {
+        if (this.ticking) {
+            clearInterval(this.ticking);
+            this.ticking = null;
+        }
+    }
     this.update = function () {};
     this.update_score = function () {};
     this.update_time = function () {};
@@ -73,12 +112,12 @@ var GameObjectFactory = {
         this.speed_X = 0;
         this.speed_Y = 0;
         this.velocity = 10; // pixel per frame
-        this.ctx.is_spining = true;
-        this.ctx.angle = 0;
+        this.is_spining = true;
+        this.angle = 0;
         this.frame_no = 0;
         this.score = 0;
         this.frame_update = function (frame_no) {
-            if (this.ctx.is_spining) this.move("spin", frame_no); else this.move("rush", this.ctx.angle);
+            if (this.is_spining) this.move("spin", frame_no); else this.move("rush", this.angle);
             this.x += this.speed_X;
             this.y += this.speed_Y;
             this.ctx.beginPath();
@@ -89,8 +128,11 @@ var GameObjectFactory = {
             this.hitborder();
             util.update_position(this);
             this.ctx.dropController.wipe(this);
+            this.update_status();
         };
-        this.init = function () {
+        this.init = function (color, keycode) {
+            this.color = color;
+            this.name = this.color+'_mop';
             this.width = 50;
             this.height = 50;
             this.radius = 25;
@@ -101,17 +143,29 @@ var GameObjectFactory = {
                 this.ctx.canvas.addEventListener(en, function (e) {
                     e.preventDefault();
                     var ctx = this.getContext("2d");
-                    if (e.which == 32 || e.which == 0) {
-                        ctx.is_spining = false;
+                    for (var mop_keycode in ctx.mopController.mops){
+                        if (e.which == mop_keycode || e.which == 0) {
+                            ctx.mopController.mops[mop_keycode].is_spining = false;
+                        }
                     }
                 }, false);
             };
             for (var en of ['keyup', 'touchend']) {
                 this.ctx.canvas.addEventListener(en, function (e) {
+                    e.preventDefault();
                     var ctx = this.getContext("2d");
-                    ctx.is_spining = true;
+                    for (var mop_keycode in ctx.mopController.mops){
+                        if (e.which == mop_keycode || e.which == 0) {
+                            ctx.mopController.mops[mop_keycode].is_spining = true;
+                        }
+                    }
                 }, false);
             };
+            var sta = this.ctx.game_area.status;
+            this.score_div = document.createElement("div");
+            this.score_div.setAttribute('id', this.name);
+            this.score_div.innerHTML = "<span>"+this.name+"</span><span></span>"
+            sta.appendChild(this.score_div);
         };
         this.hitborder = function () {
             var bottom = this.y + this.height / 2;
@@ -133,9 +187,9 @@ var GameObjectFactory = {
             this.frame_no += 1;
             this.speed_X = 0;
             this.speed_Y = 0;
-            this.ctx.angle = this.frame_no*0.05;
+            this.angle = this.frame_no*0.05;
             this.arc_degree = 0.2*Math.PI;
-            this.arc_start = (this.ctx.angle + this.arc_degree/2) % (2*Math.PI);
+            this.arc_start = (this.angle + this.arc_degree/2) % (2*Math.PI);
             this.arc_end = this.arc_start + (2*Math.PI - this.arc_degree);
         };
         this.rush = function (angle) {
@@ -146,7 +200,9 @@ var GameObjectFactory = {
             if (type == "spin") this.spin(arg);
             else if (type == "rush") this.rush(arg);
         };
-
+        this.update_status = function() {
+            this.score_div.children[1].innerHTML = this.score;            
+        };
     }(ctx));},
     DropObject : function (ctx) {
     return (new function(ctx) {
@@ -171,12 +227,19 @@ var GameObjectFactory = {
 };
 
 var MopController = function (ctx) {
+    this.mops = {}
     this.init = function () {
-        this.mop = new GameObjectFactory.MopObject(ctx);
-        this.mop.init();
+        var mop1 = new GameObjectFactory.MopObject(ctx);
+        mop1.init("red");
+        this.mops[65] = mop1;
+        var mop2 = new GameObjectFactory.MopObject(ctx);
+        mop2.init("blue");
+        this.mops[76] = mop2;
     }
     this.frame_update = function (frame_no) {
-        this.mop.frame_update(frame_no);
+        for (var mop in this.mops) {
+            this.mops[mop].frame_update(frame_no);
+        }
     }
 }
 
