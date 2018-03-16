@@ -1,5 +1,8 @@
 
 var GameControl = function () {
+    this.game_area = null;
+    this.game_objects = [];
+    this.frame_no = 0;
     this.new_game = function () {
         this.init();
     };
@@ -8,16 +11,25 @@ var GameControl = function () {
     this.init = function () {
         this.game_area = new GameArea();
         this.game_area.init();
-        this.ctx = this.game_area.canvas.getContext("2d");
+        this.cv = this.game_area.canvas;
+        this.ctx = this.cv.getContext("2d");
+
         var myMop = new GameObjectFactory.MopObject(this.ctx);
         myMop.init();
         myMop.frame_update();
-        console.log(myMop);
+        this.game_objects.push(myMop);
+        setInterval(new this.update_frame(this.game_objects, function () {this.clear(this.ctx);}), 500);
     };
-    this.clear = function () {};
-    this.update_frame = function () {};
-    this.game_area = 0;
-    this.game_object = [];
+    this.clear = function (ctx) {
+        ctx.clearRect(0, 0, this.cv.width, this.cv.height);
+    };
+    this.update_frame = function (game_objects, clear) {return function() {
+        clear();
+        this.frame_no += 1;
+        game_objects.forEach(function (game_obj) {
+            game_obj.frame_update(this.frame_no);
+        });
+    };};
 };
 
 var GameArea = function () {
@@ -42,11 +54,11 @@ var GameObjectFactory = {
     return (new function(ctx) {
         this.ctx = ctx;
         this.color = "red";
-        this.frame_update = function () {
-            console.log(this.ctx);
+        this.frame_update = function (frame_no) {
+            this.spin(frame_no);
             this.ctx.beginPath();
-            this.ctx.arc(this.x, this.y, this.radius, 0, 2*Math.PI)
-            console.log(this.x, this.y, this.radius, 2*Math.PI)
+            this.ctx.arc(this.x, this.y, this.radius, this.arc_start, this.arc_end);
+            this.ctx.lineTo(this.x, this.y);
             this.ctx.fillStyle = this.color;
             this.ctx.fill();
         };
@@ -56,7 +68,12 @@ var GameObjectFactory = {
             this.radius = 50;
             this.x = util.randomInt(this.width/2, this.ctx.canvas.width-this.width/2);
             this.y = util.randomInt(this.height/2, this.ctx.canvas.height-this.height/2);
+            this.spin(0);
         };
+        this.spin = function (frame_no) {
+            this.arc_start = frame_no % (2*Math.PI);
+            this.arc_end = this.arc_start + 1.8*Math.PI;
+        }
     }(ctx));},
     DropObject : function () {
         this.frame_update = function () {};
@@ -66,7 +83,6 @@ var GameObjectFactory = {
 
 var util = {
     randomInt : function (start, end) {
-        console.log("util.randomInt " + start + " " + end);
         var rd = Math.random();
         return Math.floor(rd*(end-start) + start);
     }
