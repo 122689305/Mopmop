@@ -27,7 +27,7 @@ var GameControl = function () {
             return function() {clear(ctx, width, height, dropController);};
         };
 
-        setInterval(new this.update_frame(this.game_objects, 
+        setInterval(new this.update_frame(this.game_objects,
             clear(this.clear, this.ctx, this.cv.width, this.cv.height, dropController)), this.interval);
     };
     this.clear = function (ctx, width, height, dropController) {
@@ -39,7 +39,7 @@ var GameControl = function () {
             clear();
             frame_no += 1;
             game_objects.forEach(function (game_obj) {
-                game_obj.frame_update(this.frame_no);
+                game_obj.frame_update(frame_no);
             });
         };
     };
@@ -55,6 +55,7 @@ var GameArea = function () {
         cv = this.canvas;
         cv.width = width;
         cv.height = height;
+        cv.setAttribute('tabindex', '1');
         document.body.appendChild(cv);
     };
     this.update = function () {};
@@ -67,26 +68,79 @@ var GameObjectFactory = {
     return (new function(ctx) {
         this.ctx = ctx;
         this.color = "red";
+        this.speed_X = 0;
+        this.speed_Y = 0;
+        this.velocity = 10; // pixel per frame
+        this.ctx.is_spining = true;
+        this.ctx.angle = 0;
+        this.frame_no = 0;
         this.frame_update = function (frame_no) {
-            this.spin(frame_no);
+            if (this.ctx.is_spining) this.move("spin", frame_no); else this.move("rush", this.ctx.angle);
+            this.x += this.speed_X;
+            this.y += this.speed_Y;
             this.ctx.beginPath();
             this.ctx.arc(this.x, this.y, this.radius, this.arc_start, this.arc_end);
             this.ctx.lineTo(this.x, this.y);
             this.ctx.fillStyle = this.color;
             this.ctx.fill();
+            this.hitborder();
         };
         this.init = function () {
             this.width = 50;
             this.height = 50;
-            this.radius = 50;
+            this.radius = 25;
             this.x = util.randomInt(this.width/2, this.ctx.canvas.width-this.width/2);
             this.y = util.randomInt(this.height/2, this.ctx.canvas.height-this.height/2);
             this.spin(0);
+            for (var en of ['keydown', 'touchstart']) {
+                console.log(en);
+                this.ctx.canvas.addEventListener(en, function (e) {
+                    var ctx = this.getContext("2d");
+                    if (e.keyCode == 32) {
+                        ctx.is_spining = false;
+                    }
+                });
+            };
+            for (var en of ['keyup', 'touchend']) {
+                this.ctx.canvas.addEventListener(en, function (e) {
+                    var ctx = this.getContext("2d");
+                    ctx.is_spining = true;
+                });
+            };
         };
-        this.spin = function (frame_no) {
-            this.arc_start = frame_no*0.05 % (2*Math.PI);
-            this.arc_end = this.arc_start + 1.8*Math.PI;
+        this.hitborder = function () {
+            var bottom = this.y + this.height / 2;
+            var top = this.y - this.height / 2;
+            var left = this.x - this.width / 2;
+            var right = this.x + this.width / 2;
+
+            var border_bottom = this.ctx.canvas.height;
+            var border_top = 0;
+            var border_right = this.ctx.canvas.width;
+            var border_left = 0;
+
+            if (bottom > border_bottom) this.y = border_bottom - this.height/2;
+            if (top < border_top) this.y = border_top + this.height/2;
+            if (left < border_left) this.x = border_left + this.width/2;
+            if (right > border_right) this.x = border_right - this.width/2;
         }
+        this.spin = function (frame_no) {
+            this.frame_no += 1;
+            this.speed_X = 0;
+            this.speed_Y = 0;
+            this.ctx.angle = this.frame_no*0.05;
+            this.arc_start = this.ctx.angle % (2*Math.PI);
+            this.arc_end = this.arc_start + 1.8*Math.PI;
+        };
+        this.rush = function (angle) {
+            this.speed_X = Math.cos(angle) * this.velocity;
+            this.speed_Y = Math.sin(angle) * this.velocity;
+        };
+        this.move = function (type, arg) {
+            if (type == "spin") this.spin(arg);
+            else if (type == "rush") this.rush(arg);
+        };
+
     }(ctx));},
     DropObject : function (ctx) {
     return (new function(ctx) {
