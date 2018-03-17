@@ -14,17 +14,30 @@ app.get('/game.html', function(req, res) {
     res.sendFile(__dirname + '/public/game.html');
 });
 
+var random_seed = (new Date).getTime();
+var players = new Set();
+
 io.on('connection', function(socket) {
     console.log('a user connected');
 	socket.on('disconnect', function(){
+        players.clear();
     	console.log('user disconnected');
   	});
     socket.on('sync', data => {
         socket.broadcast.emit('sync', data);
     });
-    socket.on('newgame', msg => {
-        console.log(msg);
-    });
+    var start_game_ack = id => {
+        if (!(players.has(id))) {
+            players.add(id);
+        };
+        console.log(players);
+        if (players.size == 2) {
+            players.clear();
+            console.log('game start');
+            io.emit('start_game_ack', random_seed);
+        }
+    };
+    socket.on('start_game', start_game_ack);
 });
 
 http.listen(port, () => console.log('listening on *:3000'));
