@@ -2,13 +2,13 @@
 var GameControl = function (socket) {
     this.socket = socket;
     this.game_area = null;
-    this.game_objects = [];
+    this.game_controllers = [];
     this.frame_no = 0;
     this.freq = 60;
     this.interval = Math.round(1000 / this.freq);
     this.new_game = function () {
+        this.socket.emit('newgame', 'newgame');
         this.init();
-        this.game_area.start_tick();
     };
     this.stop = function () {
         this.game_area.stop_tick();
@@ -32,20 +32,30 @@ var GameControl = function (socket) {
         mopController.init();
         this.ctx.mopController = mopController;
 
-        this.game_objects.push(dropController, mopController);
+        this.game_controllers.push(dropController, mopController);
+        this.ctx.game_controllers = this.game_controllers;
 
         var clear = function(clear, ctx, width, height, dropController) {
             return function() {clear(ctx, width, height, dropController);};
         };
 
         setInterval(new this.update_frame(this.ctx, this.game_objects,
-            clear(this.clear, this.ctx, this.cv.width, this.cv.height, dropController)), this.interval);
+            clear(this.clear, this.ctx, this.cv.width, this.cv.height, dropController), this.sync), this.interval);
 
-        this.socket.on('mop', (ctx => function(mop){
-            console.log('mop', mop);
-            mop.ctx = ctx;
-            ctx.mopController.add_mop(mop);
+        this.socket.on('sync', (ctx => function(data){
+            if (!(-1 in ctx.mopController.mops)) {
+                ctx.mopController.add_mop();
+                ctx.game_area.start_tick();
+            }
+            var opponent_spining = data['is_spining'];
+            ctx.mopController.mops[-1].is_spining = opponent_spining;
         })(this.ctx));
+        setInterval((ctx => function () {
+            ctx.socket.emit('sync',
+                {'is_spining': ctx.mopController.main_mop.is_spining}
+            )})(this.ctx), this.interval/4
+        );
+
     };
     this.clear = function (ctx, width, height, dropController) {
         ctx.clearRect(0, 0, width, height);
@@ -56,9 +66,9 @@ var GameControl = function (socket) {
             if (!(ctx.game_area.ticking == null)) {
                 clear();
                 frame_no += 1;
-                game_objects.forEach(function (game_obj) {
-                    game_obj.frame_update(frame_no);
-                });
+                for (var game_controller of ctx.game_controllers) {
+                    game_controller.frame_update(frame_no);
+                }
             }
         };
     };
@@ -244,18 +254,19 @@ var MopController = function (ctx) {
         mop.init("blue");
         this.mops[this.keycode] = mop;
         this.keycode += 1;
-
-        this.ctx.socket.emit('mop', mop);
+        this.main_mop = mop;
     }
     this.frame_update = function (frame_no) {
         for (var mop in this.mops) {
             this.mops[mop].frame_update(frame_no);
         }
     }
-    this.add_mop = function(mop) {
-        console.log(mop);
-        this.mops[keycode] = mop;
-        keycode += 1;
+    this.add_mop = function() {
+        console.log('new mop');
+        var mop = new GameObjectFactory.MopObject(ctx);
+        mop.init("red");
+        this.mops[-1] = mop;
+        //keycode += 1;
     }
 }
 

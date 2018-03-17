@@ -19,10 +19,12 @@ io.on('connection', function(socket) {
 	socket.on('disconnect', function(){
     	console.log('user disconnected');
   	});
-	socket.on('mop', mop => {
-		console.log('mop', mop);
-		socket.broadcast.emit('mop', mop);
-	});
+    socket.on('sync', data => {
+        socket.broadcast.emit('sync', data);
+    });
+    socket.on('newgame', msg => {
+        console.log(msg);
+    });
 });
 
 http.listen(port, () => console.log('listening on *:3000'));
