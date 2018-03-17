@@ -202,10 +202,14 @@ var GameObjectFactory = {
                     e.preventDefault();
                     var ctx = this.getContext("2d");
                     for (var mop_keycode in ctx.mopController.mops){
-                        if (e.which == mop_keycode || e.which == 0) {
+                        if (e.which == mop_keycode) {
                             ctx.mopController.mops[mop_keycode].is_spining = false;
                             ctx.mopController.mops[mop_keycode].is_rushing = true;
-                        }
+                        };
+                    }
+                    if (e.which == 0) {
+                        ctx.mopController.main_mop.is_spining = false;
+                        ctx.mopController.main_mop.is_rushing = true;
                     }
                 }, false);
             };
@@ -214,10 +218,14 @@ var GameObjectFactory = {
                     e.preventDefault();
                     var ctx = this.getContext("2d");
                     for (var mop_keycode in ctx.mopController.mops){
-                        if (e.which == mop_keycode || e.which == 0) {
+                        if (e.which == mop_keycode) {
                             ctx.mopController.mops[mop_keycode].is_spining = true;
                             ctx.mopController.mops[mop_keycode].is_rushing = false;
                         }
+                    }
+                    if (e.which == 0) {
+                        ctx.mopController.main_mop.is_spining = true;
+                        ctx.mopController.main_mop.is_rushing = false;                        
                     }
                 }, false);
             };
